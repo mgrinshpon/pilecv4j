@@ -29,7 +29,7 @@ import ai.kognition.pilecv4j.gstreamer.guard.BufferWrap;
 import ai.kognition.pilecv4j.image.CvMat;
 
 public class BreakoutFilter extends BaseTransform {
-    private static Logger LOGGER = LoggerFactory.getLogger(BreakoutFilter.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(BreakoutFilter.class);
 
     public static final String GST_NAME = "breakout";
     public static final String GTYPE_NAME = "GstBreakout";
@@ -110,7 +110,7 @@ public class BreakoutFilter extends BaseTransform {
          */
         private CvMatAndCaps(final Buffer frameBuffer, final CvMat tmp, final Caps caps, final int w, final int h, final int type) {
             super(caps, w, h);
-            try (BufferWrap bw = new BufferWrap(frameBuffer, false);) {
+            try (final BufferWrap bw = new BufferWrap(frameBuffer, false)) {
                 final ByteBuffer bb = bw.map(false);
                 final int capacity = bb.remaining();
 
@@ -160,9 +160,9 @@ public class BreakoutFilter extends BaseTransform {
         return connect((NEW_SAMPLE)elem -> {
             final int h = elem.getCurrentFrameHeight();
             final int w = elem.getCurrentFrameWidth();
-            try (BufferWrap buffer = elem.getCurrentBuffer();
-                CvMat raster = buffer.mapToCvMat(h, w, CvType.CV_8UC3, true);
-                CvMatAndCaps bac = new CvMatAndCaps(raster, elem.getCurrentCaps(), w, h)) {
+            try (final BufferWrap buffer = elem.getCurrentBuffer();
+                 final CvMat raster = buffer.mapToCvMat(h, w, CvType.CV_8UC3, true);// TODO change you
+                 final CvMatAndCaps bac = new CvMatAndCaps(raster, elem.getCurrentCaps(), w, h)) {
                 return (raster == null) ? FlowReturn.OK : filter.apply(bac);
             }
         });
@@ -172,6 +172,7 @@ public class BreakoutFilter extends BaseTransform {
         return connectSlowFilter(1, filter);
     }
 
+    // TODO
     public BreakoutFilter connectSlowFilter(final int numThreads, final Consumer<CvMatAndCaps> filter) {
         final BreakoutFilter ret = connect(proxyFilter = new SlowFilterSlippage(numThreads, filter));
         return ret;
@@ -298,7 +299,7 @@ public class BreakoutFilter extends BaseTransform {
         private boolean firstOne = true;
 
         private final AtomicReference<CvMat> storedBuffer = new AtomicReference<>();
-        private static AtomicLong threadSequence = new AtomicLong(0);
+        private static final AtomicLong threadSequence = new AtomicLong(0);
 
         private void dispose(final CvMatAndCaps bac) {
             if(bac != null) {
@@ -350,7 +351,7 @@ public class BreakoutFilter extends BaseTransform {
 
         @Override
         public FlowReturn new_sample(final BreakoutFilter elem) {
-            try (final BufferWrap buffer = elem.getCurrentBuffer();) {
+            try (final BufferWrap buffer = elem.getCurrentBuffer()) {
 
                 // ========================================================
                 // The goal here is to set 'current' with the result from
@@ -365,7 +366,7 @@ public class BreakoutFilter extends BaseTransform {
                 // see if there's a result ready from the other thread
                 final CvMatAndCaps res = result.getAndSet(null);
                 if(res != null || firstOne) { // yes. we can pass the current frame over.
-                    dispose(to.getAndSet(
+                    dispose(to.getAndSet( // FIXME is this where the function happens?
                         new CvMatAndCaps(buffer.obj, storedBuffer.getAndSet(null), elem.getCurrentCaps(), elem.getCurrentFrameWidth(),
                             elem.getCurrentFrameHeight(), CvType.CV_8UC3)));
 
@@ -450,8 +451,8 @@ public class BreakoutFilter extends BaseTransform {
 
         @Override
         public FlowReturn new_sample(final BreakoutFilter elem) {
-            try (final BufferWrap buffer = elem.getCurrentBuffer();) {
-                dispose(to.getAndSet(
+            try (final BufferWrap buffer = elem.getCurrentBuffer()) {
+                dispose(to.getAndSet( // TODO fix func
                     new CvMatAndCaps(buffer.obj, null, elem.getCurrentCaps(), elem.getCurrentFrameWidth(),
                         elem.getCurrentFrameHeight(), CvType.CV_8UC3)));
             }
